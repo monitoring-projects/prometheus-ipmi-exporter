@@ -6,7 +6,9 @@ go:
 repository:
     path: github.com/monitoring-projects/prometheus-ipmi-exporter
 build:
-    binary: ipmi_exporter
+    binaries:
+      - name: ipmi_exporter
+        path: .
     flags: -a -tags 'netgo static_build'
     ldflags: |
         -X github.com/prometheus/common/version.Version={{.Version}}
