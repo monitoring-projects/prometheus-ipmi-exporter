@@ -1,0 +1,2 @@
+# ipmi-exporter startup flags
+OPTS='--config.file /etc/ipmi-exporter/ipmi-local.yml --web.listen-address=:9290'

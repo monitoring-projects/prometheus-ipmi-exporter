@@ -1,0 +1,13 @@
+[Unit]
+Description=IPMI Exporter for Prometheus
+
+[Service]
+User=root
+Type=simple
+EnvironmentFile=-/etc/default/ipmi-exporter
+ExecStart=/usr/bin/ipmi_exporter $OPTS
+KillMode=process
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
