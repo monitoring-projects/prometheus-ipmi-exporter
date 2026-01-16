@@ -4,8 +4,9 @@ go:
     version: 1.25
 
 repository:
-    path: github.com/prometheus-community/ipmi_exporter
+    path: github.com/monitoring-projects/prometheus-ipmi-exporter
 build:
+    binary: ipmi_exporter
     flags: -a -tags 'netgo static_build'
     ldflags: |
         -X github.com/prometheus/common/version.Version={{.Version}}

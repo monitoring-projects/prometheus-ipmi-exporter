@@ -27,8 +27,8 @@ checksum:
   name_template: checksums.txt
 dockers:
   - image_templates:
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:{{ .Version }}"
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:latest"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/ipmi-exporter:{{ .Version }}"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/ipmi-exporter:latest"
     dockerfile: Dockerfile
     build_flag_templates:
       - "--pull"
@@ -39,8 +39,8 @@ dockers:
       - "--label=org.opencontainers.image.licenses=Apache-2.0"
       - "--platform=linux/amd64"
   - image_templates:
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:{{ .Version }}-arm64"
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:latest-arm64"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/ipmi-exporter:{{ .Version }}-arm64"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/ipmi-exporter:latest-arm64"
     dockerfile: Dockerfile
     build_flag_templates:
       - "--pull"
@@ -52,16 +52,16 @@ dockers:
       - "--platform=linux/arm64"
     goarch: arm64
 docker_manifests:
-  - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:{{ .Version }}"
+  - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/ipmi-exporter:{{ .Version }}"
     image_templates:
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:{{ .Version }}"
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:{{ .Version }}-arm64"
-  - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:latest"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/ipmi-exporter:{{ .Version }}"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/ipmi-exporter:{{ .Version }}-arm64"
+  - name_template: "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/ipmi-exporter:latest"
     image_templates:
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:latest"
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:latest-arm64"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/ipmi-exporter:latest"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/ipmi-exporter:latest-arm64"
 nfpms:
-  - homepage: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName }}
+  - homepage: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}/{{ .ProjectName }}
     maintainer: prometheus-developers@googlegroups.com
     description: Prometheus exporter for IPMI metrics
     license: Apache-2.0
@@ -84,7 +84,7 @@ nfpms:
       preremove: "packaging/scripts/preremove.sh"
 release:
   github:
-    owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
+    owner: "{{ .Env.GITHUB_REPOSITORY_OWNER | default 'monitoring-projects' }}"
     name: "{{ .ProjectName }}"
   draft: false
   prerelease: auto
