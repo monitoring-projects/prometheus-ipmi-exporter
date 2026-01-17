@@ -38,8 +38,8 @@ The configuration file also supports a blacklist of sensors, useful in case of
 OEM-specific sensors that FreeIPMI cannot deal with properly or otherwise
 misbehaving sensors. This applies to both local and remote metrics.
 
-There are two commented example configuration files, see `ipmi_local.yml` for
-scraping local host metrics and `ipmi_remote.yml` for scraping remote IPMI
+There are two commented example configuration files, see `ipmi-local.yml` for
+scraping local host metrics and `ipmi-remote.yml` for scraping remote IPMI
 interfaces.
 
 ## Prometheus
@@ -124,7 +124,7 @@ add the following to your Prometheus config:
 ```
 
 This assumes that all hosts use the default module. If you are using modules in
-the config file, like in the provided `ipmi_remote.yml` example config, you
+the config file, like in the provided `ipmi-remote.yml` example config, you
 will need to specify on job for each module, using the respective group of
 targets.
 
