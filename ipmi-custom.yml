@@ -1,9 +1,7 @@
 # Configuration file for ipmi_exporter
 
-# This is an example config for scraping the local host.
-# In most cases, this should work without using a config file at all, but here
-# are some examples of things that can be customized. If you require privilege
-# elevation to get the local metrics, see the `ipmi_local_sudo.yml` example.
+# This is a custom configuration template that can be modified for specific needs.
+# Copy this file and modify it according to your requirements.
 modules:
   default:
     # Available collectors are bmc, bmc-watchdog, ipmi, chassis, dcmi, sel, sel-events and sm-lan-mode
@@ -23,3 +21,14 @@ modules:
     sel_events:
       - name: correctable_memory_error
         regex: Correctable memory error.*
+      - name: fan_failure
+        regex: Fan.*failure.*
+      - name: power_supply_failure
+        regex: Power Supply.*failure.*
+    # Additional custom configuration options can be added here
+    # For example, custom collector commands or arguments
+    # collector_cmd:
+    #   ipmi: /usr/bin/sudo
+    # custom_args:
+    #   ipmi:
+    #   - "/usr/sbin/ipmimonitoring"

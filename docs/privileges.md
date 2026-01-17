@@ -26,6 +26,6 @@ interface), you can do the following:
        ipmi:
        - "/usr/sbin/ipmimonitoring"
      ```
-     See also the [sudo example config](../ipmi_local_sudo.yml).
+     See also the [sudo example config](../ipmi-local-sudo.yml).
 
 Note that no elevated privileges are necessary for getting remote metrics.

@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # IPMI Exporter - Local Build
+  ipmi-exporter-local:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    image: ipmi-exporter:local
+    container_name: ipmi-exporter-local
+    ports:
+      - "9290:9290"
+    volumes:
+      - ./ipmi-local.yml:/etc/ipmi-exporter/ipmi-local.yml:ro
+      - ./ipmi-remote.yml:/etc/ipmi-exporter/ipmi-remote.yml:ro
+    environment:
+      - TZ=UTC
+    # IPMI access typically requires privileged mode
+    privileged: true
+    restart: unless-stopped
+    networks:
+      - ipmi-network
+
+  # IPMI Exporter - Test Mode
+  ipmi-exporter-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    image: ipmi-exporter:local
+    container_name: ipmi-exporter-test
+    command: ["--test"]
+    volumes:
+      - ./ipmi-local.yml:/etc/ipmi-exporter/ipmi-local.yml:ro
+    environment:
+      - TZ=UTC
+    # IPMI access typically requires privileged mode
+    privileged: true
+    networks:
+      - ipmi-network
+    # Run once and exit
+    restart: "no"
+
+  # Prometheus (optional, for scraping metrics)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-local
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - ipmi-network
+    depends_on:
+      - ipmi-exporter-local
+
+networks:
+  ipmi-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:

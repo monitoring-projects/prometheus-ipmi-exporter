@@ -1,0 +1,31 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # IPMI Exporter - Local metrics
+  - job_name: 'ipmi-exporter'
+    static_configs:
+      - targets: ['ipmi-exporter-local:9290']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metrics_path: /metrics
+
+  # IPMI Exporter - Remote scraping example
+  - job_name: 'ipmi-exporter-remote'
+    static_configs:
+      - targets: ['ipmi-exporter-local:9290']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metrics_path: /ipmi
+    params:
+      target: ['192.168.1.100']  # Replace with actual IPMI target

@@ -76,7 +76,7 @@ snapshot:
 	goreleaser release --snapshot --rm-dist
 
 # Local testing commands
-.PHONY: test-local test-docker test-docker-buildx test-release
+.PHONY: test-local test-docker test-docker-buildx test-release docker-local docker-test docker-test-debug docker-compose-up docker-compose-down docker-run-local docker-run-remote docker-run-local-sudo docker-run-custom docker-test-local docker-test-remote docker-test-local-sudo
 
 test-local:
 	@echo ">> testing goreleaser configuration locally"
@@ -95,8 +95,80 @@ test-release:
 	@echo ">> testing full release process locally (dry run)"
 	goreleaser release --clean --skip=validate --skip=publish
 
+# Local Docker development commands
+docker-local:
+	@echo ">> building local Docker image with multi-stage build"
+	docker build -f Dockerfile.local -t ipmi-exporter:local .
+
+docker-test:
+	@echo ">> running IPMI exporter test mode in Docker"
+	docker run --rm --privileged \
+		-v $(PWD)/packaging/conf/ipmi-local.yml:/etc/ipmi-exporter/ipmi-local.yml:ro \
+		ipmi-exporter:local --test
+
+docker-test-debug:
+	@echo ">> running IPMI exporter test mode in Docker with debug output"
+	docker run --rm --privileged \
+		-v $(PWD)/packaging/conf/ipmi-local.yml:/etc/ipmi-exporter/ipmi-local.yml:ro \
+		ipmi-exporter:local --test --test.debug
+
+# Configuration mode targets
+docker-run-local:
+	@echo ">> running IPMI exporter in local mode"
+	docker run --rm --privileged \
+		-v $(PWD)/packaging/conf/ipmi-local.yml:/etc/ipmi-exporter/ipmi-local.yml:ro \
+		-p 9290:9290 ipmi-exporter:local --config.mode=local
+
+docker-run-remote:
+	@echo ">> running IPMI exporter in remote mode"
+	docker run --rm --privileged \
+		-v $(PWD)/packaging/conf/ipmi-remote.yml:/etc/ipmi-exporter/ipmi-remote.yml:ro \
+		-p 9290:9290 ipmi-exporter:local --config.mode=remote
+
+docker-run-local-sudo:
+	@echo ">> running IPMI exporter in local-sudo mode"
+	docker run --rm --privileged \
+		-v $(PWD)/packaging/conf/ipmi-local-sudo.yml:/etc/ipmi-exporter/ipmi-local-sudo.yml:ro \
+		-p 9290:9290 ipmi-exporter:local --config.mode=local-sudo
+
+docker-run-custom:
+	@echo ">> running IPMI exporter in custom mode"
+	docker run --rm --privileged \
+		-v $(PWD)/packaging/conf/ipmi-custom.yml:/etc/ipmi-exporter/ipmi-custom.yml:ro \
+		-p 9290:9290 ipmi-exporter:local --config.mode=custom
+
+docker-test-local:
+	@echo ">> running IPMI exporter test mode in local configuration"
+	docker run --rm --privileged \
+		-v $(PWD)/packaging/conf/ipmi-local.yml:/etc/ipmi-exporter/ipmi-local.yml:ro \
+		ipmi-exporter:local --config.mode=local --test
+
+docker-test-remote:
+	@echo ">> running IPMI exporter test mode in remote configuration"
+	docker run --rm --privileged \
+		-v $(PWD)/packaging/conf/ipmi-remote.yml:/etc/ipmi-exporter/ipmi-remote.yml:ro \
+		ipmi-exporter:local --config.mode=remote --test
+
+docker-test-local-sudo:
+	@echo ">> running IPMI exporter test mode in local-sudo configuration"
+	docker run --rm --privileged \
+		-v $(PWD)/packaging/conf/ipmi-local-sudo.yml:/etc/ipmi-exporter/ipmi-local-sudo.yml:ro \
+		ipmi-exporter:local --config.mode=local-sudo --test
+
+docker-compose-up:
+	@echo ">> starting local development environment"
+	docker-compose -f docker-compose.local.yml up -d
+
+docker-compose-down:
+	@echo ">> stopping local development environment"
+	docker-compose -f docker-compose.local.yml down
+
+docker-compose-logs:
+	@echo ">> showing logs from local development environment"
+	docker-compose -f docker-compose.local.yml logs -f
+
 # Act workflow testing (requires act CLI)
-.PHONY: test-workflow
+.PHONY: test-workflow docker-compose-logs
 
 test-workflow:
 	@echo ">> testing GitHub workflow locally with act"

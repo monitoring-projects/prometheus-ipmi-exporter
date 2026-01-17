@@ -7,7 +7,8 @@ RUN apk --no-cache add freeipmi ca-certificates tzdata
 LABEL maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>" \
       org.opencontainers.image.title="IPMI Exporter" \
       org.opencontainers.image.description="Prometheus exporter for IPMI metrics" \
-      org.opencontainers.image.licenses="Apache-2.0"
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/monitoring-projects/prometheus-ipmi-exporter"
 
 # Copy the pre-built binary from GoReleaser
 COPY ipmi_exporter /bin/ipmi_exporter

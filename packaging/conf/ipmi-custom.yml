@@ -1,0 +1,34 @@
+# Configuration file for ipmi_exporter
+
+# This is a custom configuration template that can be modified for specific needs.
+# Copy this file and modify it according to your requirements.
+modules:
+  default:
+    # Available collectors are bmc, bmc-watchdog, ipmi, chassis, dcmi, sel, sel-events and sm-lan-mode
+    collectors:
+      - bmc
+      - ipmi
+      - dcmi
+      - chassis
+      - sel
+      - sel-events
+    # Got any sensors you don't care about? Add them here.
+    exclude_sensor_ids:
+      - 2
+      - 29
+      - 32
+    # Define custom metrics for SEL entries
+    sel_events:
+      - name: correctable_memory_error
+        regex: Correctable memory error.*
+      - name: fan_failure
+        regex: Fan.*failure.*
+      - name: power_supply_failure
+        regex: Power Supply.*failure.*
+    # Additional custom configuration options can be added here
+    # For example, custom collector commands or arguments
+    # collector_cmd:
+    #   ipmi: /usr/bin/sudo
+    # custom_args:
+    #   ipmi:
+    #   - "/usr/sbin/ipmimonitoring"

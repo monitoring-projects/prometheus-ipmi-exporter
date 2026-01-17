@@ -1,0 +1,66 @@
+# Multi-stage Dockerfile for local image creation
+# This file is used for local development and testing
+# Use: docker build -f Dockerfile.local -t ipmi-exporter:local .
+
+# Stage 1: Build stage
+FROM golang:1.24-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Set working directory
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -a -installsuffix cgo \
+    -o ipmi_exporter .
+
+# Stage 2: Runtime stage
+FROM alpine:3
+
+# Install runtime dependencies
+RUN apk --no-cache add \
+    freeipmi \
+    ca-certificates \
+    tzdata
+
+# Add labels
+LABEL maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>" \
+      org.opencontainers.image.title="IPMI Exporter" \
+      org.opencontainers.image.description="Prometheus exporter for IPMI metrics" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/monitoring-projects/prometheus-ipmi-exporter"
+
+# Copy the binary from builder stage
+COPY --from=builder /app/ipmi_exporter /bin/ipmi_exporter
+
+# Copy packaging files from build context
+COPY packaging/conf/ /etc/ipmi-exporter/
+COPY packaging/default/ipmi-exporter /etc/ipmi-exporter/default-config
+
+# Set permissions
+RUN chmod +x /bin/ipmi_exporter
+
+# Expose the metrics port
+EXPOSE 9290
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:9290/metrics || exit 1
+
+# Default entrypoint
+ENTRYPOINT ["/bin/ipmi_exporter"]
+
+# Default command line arguments
+CMD ["--config.file=/etc/ipmi-exporter/ipmi-local.yml"]

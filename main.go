@@ -14,7 +14,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -30,6 +32,7 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -37,6 +40,10 @@ var (
 		"config.file",
 		"Path to configuration file.",
 	).String()
+	configMode = kingpin.Flag(
+		"config.mode",
+		"Configuration mode: local, remote, local-sudo, or custom. Automatically selects appropriate config file.",
+	).Enum("local", "remote", "local-sudo", "custom")
 	executablesPath = kingpin.Flag(
 		"freeipmi.path",
 		"Path to FreeIPMI executables (default: rely on $PATH).",
@@ -44,6 +51,14 @@ var (
 	nativeIPMI = kingpin.Flag(
 		"native-ipmi",
 		"Use native IPMI implementation instead of FreeIPMI (EXPERIMENTAL)",
+	).Bool()
+	testMode = kingpin.Flag(
+		"test",
+		"Run comprehensive IPMI tests to validate all implementations and show results table",
+	).Bool()
+	testDebug = kingpin.Flag(
+		"test.debug",
+		"Show detailed debug information including metric values during testing",
 	).Bool()
 	webConfig = webflag.AddFlags(kingpin.CommandLine, ":9290")
 
@@ -54,6 +69,35 @@ var (
 
 	logger *slog.Logger
 )
+
+func metricsHandler(w http.ResponseWriter, r *http.Request) {
+	target := r.URL.Query().Get("target")
+
+	// If target parameter is provided, return remote IPMI metrics
+	if target != "" {
+		// Remote scrape will not work without some kind of config, so be pedantic about it
+		module := r.URL.Query().Get("module")
+		if module == "" {
+			module = "default"
+		}
+		if !sc.HasModule(module) {
+			http.Error(w, fmt.Sprintf("Unknown module %q", module), http.StatusBadRequest)
+			return
+		}
+
+		logger.Debug("Scraping remote target via metrics endpoint", "target", target, "module", module)
+
+		registry := prometheus.NewRegistry()
+		remoteCollector := metaCollector{target: target, module: module, config: sc}
+		registry.MustRegister(remoteCollector)
+		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+		h.ServeHTTP(w, r)
+		return
+	}
+
+	// If no target parameter, return local metrics using the default handler
+	promhttp.Handler().ServeHTTP(w, r)
+}
 
 func remoteIPMIHandler(w http.ResponseWriter, r *http.Request) {
 	target := r.URL.Query().Get("target")
@@ -72,13 +116,60 @@ func remoteIPMIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Debug("Scraping target", "target", target, "module", module)
+	logger.Debug("Scraping target via legacy /ipmi endpoint", "target", target, "module", module)
 
 	registry := prometheus.NewRegistry()
 	remoteCollector := metaCollector{target: target, module: module, config: sc}
 	registry.MustRegister(remoteCollector)
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
+}
+
+func discoverHandler(w http.ResponseWriter, _ *http.Request) {
+	// Path to ipmi-targets.yml file
+	targetsFile := "/etc/ipmi-exporter/ipmi-targets.yml"
+
+	// Read the YAML file
+	data, err := os.ReadFile(targetsFile)
+	if err != nil {
+		logger.Error("Failed to read ipmi-targets.yml", "error", err)
+		http.Error(w, "Failed to read targets file", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse YAML content - it's a list of target groups
+	var targetGroups []struct {
+		Targets []string          `yaml:"targets"`
+		Labels  map[string]string `yaml:"labels,omitempty"`
+	}
+
+	err = yaml.Unmarshal(data, &targetGroups)
+	if err != nil {
+		logger.Error("Failed to parse ipmi-targets.yml", "error", err)
+		http.Error(w, "Failed to parse targets file", http.StatusInternalServerError)
+		return
+	}
+
+	// Convert to the required JSON format
+	var result []map[string][]string
+	for _, group := range targetGroups {
+		for _, target := range group.Targets {
+			result = append(result, map[string][]string{"targets": {target}})
+		}
+	}
+
+	// Set content type and return JSON response
+	w.Header().Set("Content-Type", "application/json")
+	jsonData, err := json.Marshal(result)
+	if err != nil {
+		logger.Error("Failed to marshal JSON response", "error", err)
+		http.Error(w, "Failed to create response", http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := w.Write(jsonData); err != nil {
+		logger.Error("Failed to write response", "error", err)
+	}
 }
 
 func updateConfiguration(w http.ResponseWriter, r *http.Request) {
@@ -107,7 +198,63 @@ func main() {
 	logger.Info("Starting ipmi_exporter", "version", version.Info())
 	if *nativeIPMI {
 		logger.Info("Using Go-native IPMI implementation - this is currently EXPERIMENTAL")
-		logger.Info("Make sure to read https://github.com/prometheus-community/ipmi_exporter/blob/master/docs/native.md")
+		logger.Info("Make sure to read https://github.com/monitoring-projects/ipmi_exporter/blob/master/docs/native.md")
+	}
+
+	// Handle configuration mode selection
+	if *configMode != "" && *configFile == "" {
+		switch *configMode {
+		case "local":
+			*configFile = "/etc/ipmi-exporter/ipmi-local.yml"
+			logger.Info("Using local configuration mode", "config", *configFile)
+		case "remote":
+			*configFile = "/etc/ipmi-exporter/ipmi-remote.yml"
+			logger.Info("Using remote configuration mode", "config", *configFile)
+		case "local-sudo":
+			*configFile = "/etc/ipmi-exporter/ipmi-local-sudo.yml"
+			logger.Info("Using local-sudo configuration mode", "config", *configFile)
+		case "custom":
+			*configFile = "/etc/ipmi-exporter/ipmi-custom.yml"
+			logger.Info("Using custom configuration mode", "config", *configFile)
+		}
+	} else if *configMode != "" && *configFile != "" {
+		logger.Info("Using specified configuration file", "mode", *configMode, "config", *configFile)
+	} else if *configFile == "" {
+		// Default to local mode if no config specified
+		*configFile = "/etc/ipmi-exporter/ipmi-local.yml"
+		logger.Info("No configuration specified, using default local mode", "config", *configFile)
+	}
+
+	// Check if test mode is enabled
+	if *testMode {
+		logger.Info("Running in test mode - validating all IPMI implementations")
+
+		// Bail early if the config is bad.
+		if err := sc.ReloadConfig(*configFile); err != nil {
+			logger.Error("Error parsing config file", "error", err)
+			os.Exit(1)
+		}
+
+		// Create a standard logger for the test suite
+		testLogger := log.New(os.Stdout, "[TEST] ", log.LstdFlags)
+
+		// Create and run test suite
+		testSuite := NewTestSuite(sc, testLogger, *testDebug)
+		testSuite.RunAllTests()
+
+		// Print results table
+		testSuite.PrintResultsTable()
+
+		// Get summary and exit with appropriate code
+		passed, failed, total, _ := testSuite.GetSummary()
+		logger.Info("Test suite completed", "passed", passed, "failed", failed, "total", total)
+
+		if failed > 0 {
+			logger.Error("Some tests failed - see output above for details")
+			os.Exit(1)
+		}
+		logger.Info("All tests passed successfully!")
+		os.Exit(0)
 	}
 
 	// Bail early if the config is bad.
@@ -141,8 +288,9 @@ func main() {
 	localCollector := metaCollector{target: targetLocal, module: "default", config: sc}
 	prometheus.MustRegister(&localCollector)
 
-	http.Handle("/metrics", promhttp.Handler())       // Regular metrics endpoint for local IPMI metrics.
-	http.HandleFunc("/ipmi", remoteIPMIHandler)       // Endpoint to do IPMI scrapes.
+	http.HandleFunc("/metrics", metricsHandler)       // Enhanced metrics endpoint supporting target parameter.
+	http.HandleFunc("/ipmi", remoteIPMIHandler)       // Legacy endpoint for IPMI scrapes (backward compatibility).
+	http.HandleFunc("/discover", discoverHandler)     // Endpoint to discover IPMI targets.
 	http.HandleFunc("/-/reload", updateConfiguration) // Endpoint to reload configuration.
 
 	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {

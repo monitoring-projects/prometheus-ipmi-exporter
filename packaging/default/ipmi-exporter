@@ -1,2 +1,40 @@
-# ipmi-exporter startup flags
-OPTS='--config.file /etc/ipmi-exporter/ipmi-local.yml --web.listen-address=:9290'
+# IPMI Exporter Service Configuration
+# This file controls the startup options for the ipmi-exporter service
+
+# Configuration mode: local, remote, local-sudo, or custom
+# If not specified, defaults to local mode
+CONFIG_MODE=local
+
+# Path to configuration file (optional, overrides CONFIG_MODE)
+# CONFIG_FILE=/etc/ipmi-exporter/ipmi-local.yml
+
+# Web listen address
+WEB_LISTEN_ADDRESS=:9290
+
+# Build startup options
+OPTS="--config.mode=${CONFIG_MODE} --web.listen-address=${WEB_LISTEN_ADDRESS}"
+
+# Example configurations for different modes:
+
+# Local mode (default - current setting)
+# CONFIG_MODE=local
+# OPTS="--config.mode=local --web.listen-address=:9290"
+
+# Remote mode
+# CONFIG_MODE=remote
+# OPTS="--config.mode=remote --web.listen-address=:9290"
+
+# Local-sudo mode
+# CONFIG_MODE=local-sudo
+# OPTS="--config.mode=local-sudo --web.listen-address=:9290"
+
+# Custom mode with specific config file
+# CONFIG_MODE=custom
+# CONFIG_FILE=/etc/ipmi-exporter/ipmi-custom.yml
+# OPTS="--config.mode=${CONFIG_MODE} --config.file=${CONFIG_FILE} --web.listen-address=:9290"
+
+# Debug mode
+# OPTS="--config.mode=local --log.level=debug --web.listen-address=:9290"
+
+# Native IPMI mode (experimental)
+# OPTS="--config.mode=local --native-ipmi --web.listen-address=:9290"
