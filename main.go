@@ -127,7 +127,7 @@ func remoteIPMIHandler(w http.ResponseWriter, r *http.Request) {
 
 func discoverHandler(w http.ResponseWriter, _ *http.Request) {
 	// Path to ipmi-targets.yml file
-	targetsFile := "/etc/ipmi-exporter/ipmi-targets.yml"
+	targetsFile := defaultTargetsFile
 
 	// Read the YAML file
 	data, err := os.ReadFile(targetsFile)
@@ -138,10 +138,7 @@ func discoverHandler(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	// Parse YAML content - it's a list of target groups
-	var targetGroups []struct {
-		Targets []string          `yaml:"targets"`
-		Labels  map[string]string `yaml:"labels,omitempty"`
-	}
+	var targetGroups []targetGroup
 
 	err = yaml.Unmarshal(data, &targetGroups)
 	if err != nil {
@@ -285,12 +282,17 @@ func main() {
 	}()
 
 	prometheus.MustRegister(versioncollector.NewCollector("ipmi_exporter"))
-	localCollector := metaCollector{target: targetLocal, module: "default", config: sc}
-	prometheus.MustRegister(&localCollector)
+	// In remote mode the exporter only serves per-target scrapes, so do not
+	// register a local collector that would repeatedly fail with "hostname not specified".
+	if *configMode != "remote" {
+		localCollector := metaCollector{target: targetLocal, module: "default", config: sc}
+		prometheus.MustRegister(&localCollector)
+	}
 
 	http.HandleFunc("/metrics", metricsHandler)       // Enhanced metrics endpoint supporting target parameter.
 	http.HandleFunc("/ipmi", remoteIPMIHandler)       // Legacy endpoint for IPMI scrapes (backward compatibility).
 	http.HandleFunc("/discover", discoverHandler)     // Endpoint to discover IPMI targets.
+	http.HandleFunc("/cluster", clusterHandler)       // Endpoint to fetch full cluster state as JSON tree.
 	http.HandleFunc("/-/reload", updateConfiguration) // Endpoint to reload configuration.
 
 	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
@@ -317,6 +319,8 @@ func main() {
             <input type="submit" value="Submit">
 			</form>
 			<p><a href="/metrics">Local metrics</a></p>
+			<p><a href="/discover">Discover targets</a></p>
+			<p><a href="/cluster">Cluster state (JSON)</a></p>
 			<p><a href="/config">Config</a></p>
             </body>
             </html>`))
