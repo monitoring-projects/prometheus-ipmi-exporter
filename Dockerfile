@@ -25,6 +25,6 @@ EXPOSE 9290
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:9290/metrics || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:9290/health || exit 1
 
 ENTRYPOINT ["/bin/ipmi_exporter"]

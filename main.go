@@ -170,6 +170,12 @@ func discoverHandler(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
+func healthHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("OK\n"))
+}
+
 func updateConfiguration(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
@@ -317,6 +323,7 @@ func main() {
 	}
 
 	http.HandleFunc("/metrics", metricsHandler)       // Enhanced metrics endpoint supporting target parameter.
+	http.HandleFunc("/health", healthHandler)         // Simple health check endpoint.
 	http.HandleFunc("/ipmi", remoteIPMIHandler)       // Legacy endpoint for IPMI scrapes (backward compatibility).
 	http.HandleFunc("/discover", discoverHandler)     // Endpoint to discover IPMI targets.
 	http.HandleFunc("/cluster", clusterHandler)       // Endpoint to fetch full cluster state as JSON tree.
@@ -348,6 +355,7 @@ func main() {
 			<p><a href="/metrics">Local metrics</a></p>
 			<p><a href="/discover">Discover targets</a></p>
 			<p><a href="/cluster">Cluster state (JSON)</a></p>
+			<p><a href="/health">Health check</a></p>
 			<p><a href="/config">Config</a></p>
             </body>
             </html>`))

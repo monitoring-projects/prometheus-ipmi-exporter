@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -166,5 +168,22 @@ func TestIsRemoteMode(t *testing.T) {
 	*configFile = "/etc/ipmi-exporter/ipmi-local.yml"
 	if isRemoteMode() {
 		t.Errorf("expected not remote mode when configFile is local")
+	}
+}
+
+func TestHealthHandler(t *testing.T) {
+	req := httptest.NewRequest("GET", "/health", nil)
+	rec := httptest.NewRecorder()
+
+	healthHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+	if body := rec.Body.String(); body != "OK\n" {
+		t.Errorf("expected body 'OK\\n', got %q", body)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "text/plain; charset=utf-8" {
+		t.Errorf("expected content-type text/plain; charset=utf-8, got %q", ct)
 	}
 }
