@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
@@ -184,6 +185,29 @@ func updateConfiguration(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func isRemoteMode() bool {
+	if *configMode == "remote" {
+		return true
+	}
+	if *configMode == "local" || *configMode == "local-sudo" {
+		return false
+	}
+	if *configFile != "" && strings.Contains(*configFile, "remote") {
+		return true
+	}
+	sc.Lock()
+	defer sc.Unlock()
+	if sc.C != nil {
+		if defMod, ok := sc.C.Modules["default"]; ok {
+			driver := strings.ToUpper(strings.TrimSpace(defMod.Driver))
+			if strings.HasPrefix(driver, "LAN") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func main() {
 	promslogConfig := &promslog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promslogConfig)
@@ -284,9 +308,12 @@ func main() {
 	prometheus.MustRegister(versioncollector.NewCollector("ipmi_exporter"))
 	// In remote mode the exporter only serves per-target scrapes, so do not
 	// register a local collector that would repeatedly fail with "hostname not specified".
-	if *configMode != "remote" {
+	if !isRemoteMode() {
 		localCollector := metaCollector{target: targetLocal, module: "default", config: sc}
 		prometheus.MustRegister(&localCollector)
+	} else if *configMode == "" {
+		*configMode = "remote"
+		logger.Info("Detected remote configuration mode", "config", *configFile)
 	}
 
 	http.HandleFunc("/metrics", metricsHandler)       // Enhanced metrics endpoint supporting target parameter.

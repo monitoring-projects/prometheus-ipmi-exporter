@@ -30,6 +30,9 @@ dockers:
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:{{ .Version }}"
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:latest"
     dockerfile: Dockerfile
+    extra_files:
+      - packaging/conf
+      - packaging/default/ipmi-exporter
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -42,6 +45,9 @@ dockers:
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:{{ .Version }}-arm64"
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/ipmi-exporter:latest-arm64"
     dockerfile: Dockerfile
+    extra_files:
+      - packaging/conf
+      - packaging/default/ipmi-exporter
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"

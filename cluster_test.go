@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io"
+	"math"
 	"strings"
 	"testing"
 
@@ -67,5 +68,103 @@ ipmi_up{collector="sel-events"} 1
 	}
 	if !json.Valid(b) {
 		t.Fatal("output is not valid json")
+	}
+}
+
+func TestJSONFloat(t *testing.T) {
+	tests := []struct {
+		val      float64
+		expected string
+	}{
+		{val: math.NaN(), expected: "null"},
+		{val: math.Inf(1), expected: "null"},
+		{val: math.Inf(-1), expected: "null"},
+		{val: 0.0, expected: "0"},
+		{val: 42.5, expected: "42.5"},
+	}
+
+	for _, tc := range tests {
+		jf := JSONFloat(tc.val)
+		b, err := json.Marshal(jf)
+		if err != nil {
+			t.Fatalf("marshal error for %v: %v", tc.val, err)
+		}
+		if string(b) != tc.expected {
+			t.Errorf("expected %s, got %s", tc.expected, string(b))
+		}
+	}
+}
+
+func TestClusterStateJSONEncodingWithNaN(t *testing.T) {
+	nanVal := JSONFloat(math.NaN())
+	node := &NodeState{
+		Host:                  "192.168.98.1",
+		Module:                "default",
+		Up:                    false,
+		Error:                 "scrape failed",
+		ScrapeDurationSeconds: nanVal,
+		Health: nodeHealth{
+			Status: healthCritical,
+			Issues: []string{"node unreachable"},
+		},
+		Collectors: map[string]struct {
+			Up bool `json:"up"`
+		}{
+			"bmc": {Up: false},
+		},
+		Sensors: &sensorGroups{
+			Generic: []*sensorReading{
+				{
+					ID:    "2215",
+					Name:  "VBAT",
+					Type:  "Battery",
+					Value: nil,
+					State: healthUnknown,
+				},
+			},
+		},
+	}
+
+	cluster := buildClusterState([]*NodeState{node}, defaultTargetsFile, math.NaN())
+	wrapped := map[string]*ClusterState{"cluster": cluster}
+
+	b, err := json.Marshal(wrapped)
+	if err != nil {
+		t.Fatalf("cluster marshal error: %v", err)
+	}
+	if !json.Valid(b) {
+		t.Fatal("cluster output is not valid json")
+	}
+}
+
+func TestIsRemoteMode(t *testing.T) {
+	origMode := *configMode
+	origFile := *configFile
+	defer func() {
+		*configMode = origMode
+		*configFile = origFile
+	}()
+
+	*configMode = "remote"
+	*configFile = ""
+	if !isRemoteMode() {
+		t.Errorf("expected remote mode when configMode=remote")
+	}
+
+	*configMode = "local"
+	if isRemoteMode() {
+		t.Errorf("expected local mode when configMode=local")
+	}
+
+	*configMode = ""
+	*configFile = "/etc/ipmi-exporter/ipmi-remote.yml"
+	if !isRemoteMode() {
+		t.Errorf("expected remote mode when configFile contains remote")
+	}
+
+	*configMode = ""
+	*configFile = "/etc/ipmi-exporter/ipmi-local.yml"
+	if isRemoteMode() {
+		t.Errorf("expected not remote mode when configFile is local")
 	}
 }
